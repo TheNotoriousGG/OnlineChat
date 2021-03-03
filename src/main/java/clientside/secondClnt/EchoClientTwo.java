@@ -1,7 +1,5 @@
 package clientside.secondClnt;
 
-import clientside.firstClnt.EchoClientOne;
-
 import javax.swing.*;
 import java.awt.*;
 import java.awt.event.WindowAdapter;
@@ -12,8 +10,7 @@ import java.io.IOException;
 import java.net.Socket;
 
 public class EchoClientTwo extends JFrame {
-
-    private final Integer PORT = 8085;
+    private final Integer PORT = 8088;
     private final String HOST = "localhost";
     Socket socket;
     DataInputStream dis;
@@ -21,6 +18,7 @@ public class EchoClientTwo extends JFrame {
     private JTextField messageField;
     private JTextArea chatArea;
     boolean isAuthorized;
+
 
     public EchoClientTwo() {
         chatArea = new JTextArea();
@@ -40,11 +38,13 @@ public class EchoClientTwo extends JFrame {
         dos = new DataOutputStream(socket.getOutputStream());
         isAuthorized = false;
 
+
         new Thread(() -> {
             try {
-                while (true) {
+                while (!isAuthorized) {
                     String srvMsg;
                     srvMsg = dis.readUTF();
+
                     if (srvMsg.startsWith("/AuthOK")) {
                         isAuthorized = true;
                         chatArea.append(srvMsg + '\n');
@@ -53,7 +53,7 @@ public class EchoClientTwo extends JFrame {
                     chatArea.append(srvMsg + '\n');
                 }
 
-                while (isAuthorized) {
+                while (isAuthorized){
                     String srvMsg;
                     srvMsg = dis.readUTF();
                     chatArea.append(srvMsg + '\n');
@@ -66,14 +66,20 @@ public class EchoClientTwo extends JFrame {
         }).start();
     }
 
+    private void closeConn() throws IOException {
+        //this.socket.close();
+        this.dis.close();
+        this.dos.close();
+        this.socket.close();
+    }
 
-    private void createGUI() {
+
+    private void createGUI(){
         setBounds(400, 400, 400, 400);
-        setTitle("WzzzUP");
+        setTitle("WzzzzUp");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
 
-        //chatArea = new JTextArea();
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
         add(new JScrollPane(chatArea), BorderLayout.CENTER);
@@ -114,6 +120,10 @@ public class EchoClientTwo extends JFrame {
 
     private void send() throws IOException {//todo закончить логику
 
+        if(socket.isClosed()){
+            return;
+        }
+
         if (messageField.getText() != null && !messageField.getText().trim().isEmpty()) {
             if(messageField.getText().equalsIgnoreCase("/end")){
                 dos.writeUTF("/end");
@@ -137,11 +147,6 @@ public class EchoClientTwo extends JFrame {
 
     }
 
-    private void closeConn() throws IOException {
-        this.socket.close();
-        this.dis.close();
-        this.dos.close();
-    }
 
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {

@@ -4,6 +4,7 @@ import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
+import java.net.SocketException;
 
 public class ClientHandler {
 
@@ -14,11 +15,15 @@ public class ClientHandler {
     String nick;
     boolean isAuthorized;
     boolean isBlocked;
-    int limitSec = 15;
+    int limitSec;
+    long start;
+    boolean isRecd;
+    int limitNoMsg;
 
 
     public ClientHandler(Server server, Socket socket) {
         try {
+            start = System.currentTimeMillis() / 1000;
             this.server = server;
             this.socket = socket;
             this.dis = new DataInputStream(socket.getInputStream());
@@ -26,12 +31,31 @@ public class ClientHandler {
             this.isAuthorized = false;
             isBlocked = false;
             this.nick = "";
+            limitSec = 120;
+            isRecd = false;
+            limitNoMsg = 180;
+
+
+            new Thread(() -> {
+                try {
+                    Thread.sleep(limitSec * 1000);
+                    if (!isAuthorized) {
+                        dos.writeUTF("Время ожидания истекло");
+                        closeConn();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }).start();
 
 
             new Thread(() -> {
                 try {
                     authorisation();
                     communication();
+
                 } catch (IOException e) {
                     e.printStackTrace();
                 }
@@ -44,25 +68,51 @@ public class ClientHandler {
 
     }
 
-    private void communication() throws IOException{
-        while (true) {
-            String msgFromClient;
-            msgFromClient = dis.readUTF();
 
-            if(msgFromClient.startsWith("/")){
-                if(msgFromClient.startsWith("/end")){
+    private void communication() throws IOException {
+        while (isAuthorized) {
+            isRecd = false;
+            String msgFromClient = "";
+
+            new Thread(() -> {
+                try {
+                    Thread.sleep(limitNoMsg * 1000);
+                    if (!isRecd) {
+                        dos.writeUTF("Вы не отправляли сообщения " + limitNoMsg + " секунд прощайте");
+                        closeConn();
+                    }
+                } catch (InterruptedException e) {
+                    e.printStackTrace();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }).start();
+
+
+            try {
+                msgFromClient = dis.readUTF();
+                isRecd = true;
+            } catch (SocketException ignored) {
+                server.unsubscribe(this);
+                System.out.println("Клиент закрыл чат...");
+                break;
+            }
+
+
+            if (msgFromClient.startsWith("/")) {
+                if (msgFromClient.startsWith("/end")) {
 
                     closeConn();
                     break;
                 }
-                if(msgFromClient.startsWith("/pr")){
+                if (msgFromClient.startsWith("/pr")) {
 
-                String [] arr = msgFromClient.split(" ", 3);
-                server.privateMessage(this, arr[1], this.nick + ": " + arr[2]);
-            }
-            }else{
+                    String[] arr = msgFromClient.split(" ", 3);
+                    server.privateMessage(this, arr[1], this.nick + ": " + arr[2]);
+                }
+            } else {
 
-                server.distributionToAll(msgFromClient,this);
+                server.distributionToAll(msgFromClient, this);
             }
 
         }
@@ -81,10 +131,19 @@ public class ClientHandler {
 
     private void authorisation() throws IOException {
         int i = 0;
+        String clientMsg = "";
         while (true) {
+
             dos.writeUTF("Пройдите авторизацию: " +
                     "/auth login password");
-            String clientMsg = dis.readUTF();
+            try {
+                clientMsg = dis.readUTF();
+            } catch (SocketException ignored) {
+                System.out.println("Клиент не прошел авторизацию по таймауту");
+                break;
+            }
+
+
             if (clientMsg.startsWith("/auth")) {
                 String[] words = clientMsg.split("\\s");
                 String nickTry = server.getAuthService()

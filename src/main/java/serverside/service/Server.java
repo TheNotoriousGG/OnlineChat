@@ -9,7 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class Server {
-    private final Integer PORT = 8085;
+    private final Integer PORT = 8088;
     DataInputStream inputStream;
     DataOutputStream outputStream;
     List<ClientHandler> clients;
