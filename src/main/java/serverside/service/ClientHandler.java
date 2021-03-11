@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.sql.SQLException;
 
 public class ClientHandler {
 
@@ -56,7 +57,7 @@ public class ClientHandler {
                     authorisation();
                     communication();
 
-                } catch (IOException e) {
+                } catch (IOException | SQLException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
 
@@ -129,7 +130,7 @@ public class ClientHandler {
         }
     }
 
-    private void authorisation() throws IOException {
+    private void authorisation() throws IOException, SQLException, ClassNotFoundException {
         int i = 0;
         String clientMsg = "";
         while (true) {

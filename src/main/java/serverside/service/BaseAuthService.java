@@ -2,21 +2,18 @@ package serverside.service;
 
 import serverside.interfaces.AuthService;
 
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.List;
 
 public class BaseAuthService implements AuthService {
 
-    List<Entry> entries;
-
-    public BaseAuthService(){
-        entries = new ArrayList<>();
-        entries.add(new Entry("Georgi747","7767406", "TheNotorious"));
-        entries.add(new Entry("Polly","12345", "Polly"));
-        entries.add(new Entry("Tomas","qwerty", "Shelby"));
-
-    }
-
+    private Statement statement;
+    private final String query = "SELECT * FROM USERS";
+    private ResultSet rs;
 
     @Override
     public void start() {
@@ -29,11 +26,21 @@ public class BaseAuthService implements AuthService {
     }
 
     @Override
-    public String getNickByLoginPassword(String login,String pass) {
-        for(Entry e: entries){
-            if(e.login.equalsIgnoreCase(login) && e.password.equalsIgnoreCase(pass)){
-                return e.nick;
+    public String getNickByLoginPassword(String login, String pass) {
+
+        try {
+            PreparedStatement preparedStatement = SingletonSQL.getConnection().prepareStatement(
+                    "SELECT nick FROM users WHERE 1=1 and login = ? and password = ?");
+            preparedStatement.setString(1, login);
+            preparedStatement.setString(2, pass);
+            ResultSet rslt = preparedStatement.executeQuery();
+
+            if (rslt.next()) {
+                return rslt.getString("nick");
             }
+        } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
+
         }
         return null;
     }
