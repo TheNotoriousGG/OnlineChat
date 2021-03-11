@@ -45,7 +45,7 @@ public class BaseAuthService implements AuthService {
         return null;
     }
 
-
+/*
     private class Entry{
         private String login;
         private String password;
@@ -57,5 +57,6 @@ public class BaseAuthService implements AuthService {
             this.nick = nick;
         }
     }
+ */
 
 }

@@ -5,7 +5,10 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.net.Socket;
 import java.net.SocketException;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Statement;
 
 public class ClientHandler {
 
@@ -20,6 +23,7 @@ public class ClientHandler {
     long start;
     boolean isRecd;
     int limitNoMsg;
+    private String login;
 
 
     public ClientHandler(Server server, Socket socket) {
@@ -111,6 +115,11 @@ public class ClientHandler {
                     String[] arr = msgFromClient.split(" ", 3);
                     server.privateMessage(this, arr[1], this.nick + ": " + arr[2]);
                 }
+                if(msgFromClient.startsWith("/newLogin")){
+                    String[] arr = msgFromClient.split(" ",2);
+                    newLogin(arr[1]);
+                }
+
             } else {
 
                 server.distributionToAll(msgFromClient, this);
@@ -153,6 +162,7 @@ public class ClientHandler {
 
                     if (!server.isNickBusy(nickTry)) {
                         isAuthorized = true;
+                        login = words[1];
                         nick = nickTry;
                         sendMessage("/AuthOK " + this.nick);
                         server.distributionToAll("присоединился к чату",this);
@@ -189,6 +199,27 @@ public class ClientHandler {
             dos.writeUTF(msg);
         } catch (IOException e) {
             System.out.println("Не удалось отправить сообщение: " + this.nick);
+        }
+    }
+    private void newLogin(String newLogin){
+        try {
+
+            PreparedStatement preparedStatement = SingletonSQL.getConnection().prepareStatement(
+                    "UPDATE users SET `nick` = ? WHERE (`login` = ?);");
+            preparedStatement.setString(1, newLogin);
+            preparedStatement.setString(2, this.login);
+            preparedStatement.executeUpdate();
+            server.distributionToAll("Я сменил ник на "+newLogin,this);
+
+            this.nick = newLogin;
+
+           // server.subscribe(this);
+
+
+
+        } catch (SQLException | ClassNotFoundException e) {
+            e.printStackTrace();
+
         }
     }
 }
