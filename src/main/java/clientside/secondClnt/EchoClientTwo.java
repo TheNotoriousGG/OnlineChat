@@ -2,11 +2,8 @@ package clientside.secondClnt;
 
 import javax.swing.*;
 import java.awt.*;
-import java.awt.event.WindowAdapter;
-import java.awt.event.WindowEvent;
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.awt.event.*;
+import java.io.*;
 import java.net.Socket;
 
 public class EchoClientTwo extends JFrame {
@@ -18,6 +15,8 @@ public class EchoClientTwo extends JFrame {
     private JTextField messageField;
     private JTextArea chatArea;
     boolean isAuthorized;
+    private String nick;
+    private String histFilePath = ".\\src\\main\\java\\UserPrHistory\\";
 
 
     public EchoClientTwo() {
@@ -46,17 +45,23 @@ public class EchoClientTwo extends JFrame {
                     srvMsg = dis.readUTF();
 
                     if (srvMsg.startsWith("/AuthOK")) {
+                        nick = srvMsg.split(" ",2)[1];
+                        setTitle(nick);
+
                         isAuthorized = true;
                         chatArea.append(srvMsg + '\n');
+                        saveHistory(srvMsg);
                         break;
                     }
                     chatArea.append(srvMsg + '\n');
                 }
 
                 while (isAuthorized){
+
                     String srvMsg;
                     srvMsg = dis.readUTF();
                     chatArea.append(srvMsg + '\n');
+                    saveHistory(srvMsg);
                     send();
 
                 }
@@ -76,7 +81,7 @@ public class EchoClientTwo extends JFrame {
 
     private void createGUI(){
         setBounds(400, 400, 400, 400);
-        setTitle("WzzzzUp");
+        setTitle("WhazzUppp");
         setDefaultCloseOperation(WindowConstants.EXIT_ON_CLOSE);
 
 
@@ -110,6 +115,11 @@ public class EchoClientTwo extends JFrame {
         addWindowListener(new WindowAdapter() {
             @Override
             public void windowClosing(WindowEvent e) {
+                try {
+                    closeConn();
+                } catch (IOException ioException) {
+                    ioException.printStackTrace();
+                }
                 super.windowClosing(e);
             }
         });
@@ -118,14 +128,30 @@ public class EchoClientTwo extends JFrame {
 
     }
 
-    private void send() throws IOException {//todo закончить логику
+    private void saveHistory(String msg) throws IOException {
+        File histFile = new File(histFilePath+this.nick+".txt");
+        if(!histFile.exists()){
+            histFile.createNewFile();
+        }
+        try(BufferedWriter bw = new BufferedWriter(new FileWriter(histFile,true))){
+            bw.write(msg+'\n');
+        }
 
-        if(socket.isClosed()){
+    }
+
+    private void send() throws IOException {
+
+        if (socket.isClosed()) {
             return;
         }
 
+        if(messageField.getText().startsWith("/newLogin")){
+            nick = messageField.getText().split(" ",2)[1];
+            setTitle(nick);
+        }
+
         if (messageField.getText() != null && !messageField.getText().trim().isEmpty()) {
-            if(messageField.getText().equalsIgnoreCase("/end")){
+            if (messageField.getText().equalsIgnoreCase("/end")) {
                 dos.writeUTF("/end");
                 isAuthorized = false;
                 try {

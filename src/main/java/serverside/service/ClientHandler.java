@@ -1,8 +1,6 @@
 package serverside.service;
 
-import java.io.DataInputStream;
-import java.io.DataOutputStream;
-import java.io.IOException;
+import java.io.*;
 import java.net.Socket;
 import java.net.SocketException;
 import java.sql.PreparedStatement;
@@ -24,6 +22,8 @@ public class ClientHandler {
     boolean isRecd;
     int limitNoMsg;
     private String login;
+    private File histFile;
+
 
 
     public ClientHandler(Server server, Socket socket) {
@@ -39,6 +39,7 @@ public class ClientHandler {
             limitSec = 120;
             isRecd = false;
             limitNoMsg = 180;
+
 
 
             new Thread(() -> {
@@ -76,6 +77,7 @@ public class ClientHandler {
 
     private void communication() throws IOException {
         while (isAuthorized) {
+            checkHistFile();
             isRecd = false;
             String msgFromClient = "";
 
@@ -128,98 +130,104 @@ public class ClientHandler {
         }
     }
 
-    private void closeConn() {
-        server.unsubscribe(this);
-        server.distributionToAll(nick + " покинул чат",this);
-        try {
-            this.dis.close();
-            this.dos.close();
-            this.socket.close();
-        } catch (IOException ignored) {
+    private void checkHistFile() throws IOException {
+        histFile = new File(".\\src\\main\\java\\UserPrHistory\\"+this.nick+".txt");
+        if(!histFile.exists()){
+            histFile.createNewFile();
         }
     }
 
-    private void authorisation() throws IOException, SQLException, ClassNotFoundException {
-        int i = 0;
-        String clientMsg = "";
-        while (true) {
-
-            dos.writeUTF("Пройдите авторизацию: " +
-                    "/auth login password");
+        private void closeConn () {
+            server.unsubscribe(this);
+            server.distributionToAll(nick + " покинул чат", this);
             try {
-                clientMsg = dis.readUTF();
-            } catch (SocketException ignored) {
-                System.out.println("Клиент не прошел авторизацию по таймауту");
-                break;
+                this.dis.close();
+                this.dos.close();
+                this.socket.close();
+            } catch (IOException ignored) {
             }
+        }
 
+        private void authorisation() throws IOException, SQLException, ClassNotFoundException {
+            int i = 0;
+            String clientMsg = "";
+            while (true) {
 
-            if (clientMsg.startsWith("/auth")) {
-                String[] words = clientMsg.split("\\s");
-                String nickTry = server.getAuthService()
-                        .getNickByLoginPassword(words[1], words[2]);
-                if (nickTry != null) {
-
-                    if (!server.isNickBusy(nickTry)) {
-                        isAuthorized = true;
-                        login = words[1];
-                        nick = nickTry;
-                        sendMessage("/AuthOK " + this.nick);
-                        server.distributionToAll("присоединился к чату",this);
-                        server.subscribe(this);
-                        break;
-                    } else {
-                        sendMessage("Пользователь " + this.nick + " уже авторизован!");
-                    }
-
-                } else {
-                    dos.writeUTF("Клиент не зарегистрирован");
-                }
-            }else{
-                dos.writeUTF("Неверный формат авторизации");
-            }
-            i++;
-            if (i >= 3) {
-                dos.writeUTF("Превышено кол-во попыток подключения");
-                dos.writeUTF("Попробуйте через: " + limitSec + " секунд");
-
+                dos.writeUTF("Пройдите авторизацию: " +
+                        "/auth login password");
                 try {
-                    Thread.sleep(limitSec * 1000);
-                } catch (InterruptedException e) {
-                    e.printStackTrace();
+                    clientMsg = dis.readUTF();
+                } catch (SocketException ignored) {
+                    System.out.println("Клиент не прошел авторизацию по таймауту");
+                    break;
                 }
-                i = 0;
+
+
+                if (clientMsg.startsWith("/auth")) {
+                    String[] words = clientMsg.split("\\s");
+                    String nickTry = server.getAuthService()
+                            .getNickByLoginPassword(words[1], words[2]);
+                    if (nickTry != null) {
+
+                        if (!server.isNickBusy(nickTry)) {
+                            isAuthorized = true;
+                            login = words[1];
+                            nick = nickTry;
+                            sendMessage("/AuthOK " + this.nick);
+                            server.distributionToAll("присоединился к чату",this);
+                            server.subscribe(this);
+                            break;
+                        } else {
+                            sendMessage("Пользователь " + this.nick + " уже авторизован!");
+                        }
+
+                    } else {
+                        dos.writeUTF("Клиент не зарегистрирован");
+                    }
+                }else{
+                    dos.writeUTF("Неверный формат авторизации");
+                }
+                i++;
+                if (i >= 3) {
+                    dos.writeUTF("Превышено кол-во попыток подключения");
+                    dos.writeUTF("Попробуйте через: " + limitSec + " секунд");
+
+                    try {
+                        Thread.sleep(limitSec * 1000);
+                    } catch (InterruptedException e) {
+                        e.printStackTrace();
+                    }
+                    i = 0;
+                }
+            }
+
+        }
+
+        public synchronized void sendMessage(String msg) {
+            try {
+                dos.writeUTF(msg);
+            } catch (IOException e) {
+                System.out.println("Не удалось отправить сообщение: " + this.nick);
             }
         }
+        private void newLogin(String newLogin){
+            try {
 
-    }
+                PreparedStatement preparedStatement = SingletonSQL.getConnection().prepareStatement(
+                        "UPDATE users SET `nick` = ? WHERE (`login` = ?);");
+                preparedStatement.setString(1, newLogin);
+                preparedStatement.setString(2, this.login);
+                preparedStatement.executeUpdate();
+                server.distributionToAll("Я сменил ник на "+newLogin,this);
 
-    public synchronized void sendMessage(String msg) {
-        try {
-            dos.writeUTF(msg);
-        } catch (IOException e) {
-            System.out.println("Не удалось отправить сообщение: " + this.nick);
+                this.nick = newLogin;
+
+                // server.subscribe(this);
+
+
+            } catch (SQLException | ClassNotFoundException e) {
+                e.printStackTrace();
+
+            }
         }
-    }
-    private void newLogin(String newLogin){
-        try {
-
-            PreparedStatement preparedStatement = SingletonSQL.getConnection().prepareStatement(
-                    "UPDATE users SET `nick` = ? WHERE (`login` = ?);");
-            preparedStatement.setString(1, newLogin);
-            preparedStatement.setString(2, this.login);
-            preparedStatement.executeUpdate();
-            server.distributionToAll("Я сменил ник на "+newLogin,this);
-
-            this.nick = newLogin;
-
-           // server.subscribe(this);
-
-
-
-        } catch (SQLException | ClassNotFoundException e) {
-            e.printStackTrace();
-
-        }
-    }
 }
