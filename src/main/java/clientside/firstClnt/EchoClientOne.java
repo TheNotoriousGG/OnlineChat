@@ -5,6 +5,7 @@ import java.awt.*;
 import java.awt.event.*;
 import java.io.*;
 import java.net.Socket;
+import java.util.ArrayList;
 
 public class EchoClientOne extends JFrame {
     private final Integer PORT = 8088;
@@ -47,7 +48,7 @@ public class EchoClientOne extends JFrame {
                     if (srvMsg.startsWith("/AuthOK")) {
                         nick = srvMsg.split(" ",2)[1];
                         setTitle(nick);
-
+                        getHist(nick);
                         isAuthorized = true;
                         chatArea.append(srvMsg + '\n');
                         saveHistory(srvMsg);
@@ -88,7 +89,6 @@ public class EchoClientOne extends JFrame {
         chatArea.setEditable(false);
         chatArea.setLineWrap(true);
         add(new JScrollPane(chatArea), BorderLayout.CENTER);
-
         JPanel BikiniBottom = new JPanel(new BorderLayout());
         messageField = new JTextField();
         BikiniBottom.add(messageField, BorderLayout.CENTER);
@@ -128,17 +128,41 @@ public class EchoClientOne extends JFrame {
 
     }
 
+    private void getHist(String nick) throws FileNotFoundException {
+        File histfile = new File(".\\src\\main\\java\\UserPrHistory\\" + nick + ".txt");
+        ArrayList<String> hist = new ArrayList<>();
+        int counter = 0;
+
+        try (BufferedReader br = new BufferedReader(new FileReader(histfile))) {
+            String str;
+            while ((str = br.readLine()) != null) {
+                if (!str.startsWith("/") && !str.startsWith("[serv]")) {
+                    hist.add(str);
+                }
+            }
+            if (hist.size() >= 100){
+                counter = hist.size() - 100;
+            }
+
+            for(int i = counter; i < hist.size(); i++){
+                chatArea.append("\n"+hist.get(i));
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+
     private void saveHistory(String msg) throws IOException {
-        File histFile = new File(histFilePath+this.nick+".txt");
-        if(!histFile.exists()){
+        File histFile = new File(histFilePath + this.nick + ".txt");
+        if (!histFile.exists()) {
             histFile.createNewFile();
         }
-        try(BufferedWriter bw = new BufferedWriter(new FileWriter(histFile,true))){
-            bw.write(msg+'\n');
+        try (BufferedWriter bw = new BufferedWriter(new FileWriter(histFile, true))) {
+            bw.write(msg + '\n');
         }
 
     }
-
     private void send() throws IOException {
 
         if (socket.isClosed()) {
@@ -172,8 +196,6 @@ public class EchoClientOne extends JFrame {
         }
 
     }
-
-
     public static void main(String[] args) {
         SwingUtilities.invokeLater(() -> {
             new EchoClientOne();

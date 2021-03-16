@@ -46,7 +46,7 @@ public class ClientHandler {
                 try {
                     Thread.sleep(limitSec * 1000);
                     if (!isAuthorized) {
-                        dos.writeUTF("Время ожидания истекло");
+                        dos.writeUTF("[serv]Время ожидания истекло");
                         closeConn();
                     }
                 } catch (InterruptedException e) {
@@ -85,7 +85,7 @@ public class ClientHandler {
                 try {
                     Thread.sleep(limitNoMsg * 1000);
                     if (!isRecd) {
-                        dos.writeUTF("Вы не отправляли сообщения " + limitNoMsg + " секунд прощайте");
+                        dos.writeUTF("[serv]Вы не отправляли сообщения " + limitNoMsg + " секунд прощайте");
                         closeConn();
                     }
                 } catch (InterruptedException e) {
@@ -153,12 +153,12 @@ public class ClientHandler {
             String clientMsg = "";
             while (true) {
 
-                dos.writeUTF("Пройдите авторизацию: " +
+                dos.writeUTF("[serv]Пройдите авторизацию: " +
                         "/auth login password");
                 try {
                     clientMsg = dis.readUTF();
                 } catch (SocketException ignored) {
-                    System.out.println("Клиент не прошел авторизацию по таймауту");
+                    System.out.println("[serv]Клиент не прошел авторизацию по таймауту");
                     break;
                 }
 
@@ -178,19 +178,19 @@ public class ClientHandler {
                             server.subscribe(this);
                             break;
                         } else {
-                            sendMessage("Пользователь " + this.nick + " уже авторизован!");
+                            sendMessage("[serv]Пользователь " + this.nick + " уже авторизован!");
                         }
 
                     } else {
-                        dos.writeUTF("Клиент не зарегистрирован");
+                        dos.writeUTF("[serv]Клиент не зарегистрирован");
                     }
                 }else{
-                    dos.writeUTF("Неверный формат авторизации");
+                    dos.writeUTF("[serv]Неверный формат авторизации");
                 }
                 i++;
                 if (i >= 3) {
-                    dos.writeUTF("Превышено кол-во попыток подключения");
-                    dos.writeUTF("Попробуйте через: " + limitSec + " секунд");
+                    dos.writeUTF("[serv]Превышено кол-во попыток подключения");
+                    dos.writeUTF("[serv]Попробуйте через: " + limitSec + " секунд");
 
                     try {
                         Thread.sleep(limitSec * 1000);
